@@ -10,8 +10,8 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 //@NacosPropertySource(dataId = "HIS-api", autoRefreshed = true)
 
 @SpringBootApplication
-@EnableTransactionManagement    //启用事务
-@EnableScheduling               //启用定时器
+//@EnableTransactionManagement    //启用事务
+//@EnableScheduling               //启用定时器
 public class HisApiApplication {
 
     public static void main(String[] args) {

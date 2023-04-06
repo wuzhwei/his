@@ -16,7 +16,7 @@ public interface DmsRegistrationMapper {
 //
 //    int insert(DmsRegistration record);
 //
-//    int insertSelective(DmsRegistration record);
+    int insertSelective(DmsRegistration record);
 
     List<DmsRegistration> selectByExample(DmsRegistrationExample example);
 

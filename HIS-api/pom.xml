@@ -50,10 +50,10 @@
         </dependency>
 
 
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-amqp</artifactId>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.boot</groupId>-->
+<!--            <artifactId>spring-boot-starter-amqp</artifactId>-->
+<!--        </dependency>-->
 
         <dependency>
             <groupId>io.springfox</groupId>
@@ -71,10 +71,10 @@
             <version>4.13.1</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.boot</groupId>-->
+<!--            <artifactId>spring-boot-starter-security</artifactId>-->
+<!--        </dependency>-->
         <!--JWT(Json Web Token)登录支持-->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
@@ -128,14 +128,14 @@
             <scope>compile</scope>
         </dependency>
 
-        <dependency>
-            <groupId>
-                org.springframework.boot
-            </groupId>
-            <artifactId>
-                spring-boot-starter-data-redis
-            </artifactId>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>-->
+<!--                org.springframework.boot-->
+<!--            </groupId>-->
+<!--            <artifactId>-->
+<!--                spring-boot-starter-data-redis-->
+<!--            </artifactId>-->
+<!--        </dependency>-->
     </dependencies>
 
 </project>
