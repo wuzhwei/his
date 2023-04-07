@@ -4,6 +4,7 @@ package com.wzw.his.sms;
 
 import com.wzw.his.common.dto.sms.SmsSkdDocParam;
 import com.wzw.his.common.dto.sms.SmsSkdDocResult;
+import com.wzw.his.common.dto.sms.SmsSkdRuleParam;
 
 import java.util.Date;
 import java.util.List;
@@ -12,12 +13,12 @@ import java.util.List;
  * 排班
  */
 public interface SmsSkdService {
-//
-//    /**
-//     * 描述：新增排班规则
-//     */
-//    int createRule(SmsSkdRuleParam smsSkdRuleParam);
-//
+
+    /**
+     * 描述：新增排班规则
+     */
+    int createRule(SmsSkdRuleParam smsSkdRuleParam);
+
 //    /**
 //     * 描述：删除排班规则
 //     */
@@ -53,6 +54,7 @@ public interface SmsSkdService {
      * 描述：根据skd查询doc
      */
     List<SmsSkdDocResult> listDocBySkd(SmsSkdDocParam smsSkdDocParam);
+
 //
 //    /**
 //     * 描述: 根据科室id列出所有的能排班的员工
