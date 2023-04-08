@@ -2,9 +2,8 @@ package com.wzw.his.sms;
 
 
 
-import com.wzw.his.common.dto.sms.SmsSkdDocParam;
-import com.wzw.his.common.dto.sms.SmsSkdDocResult;
-import com.wzw.his.common.dto.sms.SmsSkdRuleParam;
+import com.wzw.his.common.dto.sms.*;
+import com.wzw.his.mbg.model.SmsSkdRuleResult;
 
 import java.util.Date;
 import java.util.List;
@@ -19,36 +18,36 @@ public interface SmsSkdService {
      */
     int createRule(SmsSkdRuleParam smsSkdRuleParam);
 
-//    /**
-//     * 描述：删除排班规则
-//     */
-//    int deleteRule(List<Long> ids);
-//
-//    /**
-//     * 描述：修改排班规则
-//     */
-//    int updateRule(Long id, SmsSkdRuleParam smsSkdRuleParam);
-//
-//    /**
-//     * 描述：根据deptId查找规则（不包括规则项）
-//     */
-//    List<SmsSkdRuleResult> selectRuleByDept(Long deptId);
-//
-//
-//    /**
-//     * 描述：查询规则（查询规则项）
-//     */
-//    SmsSkdRuleResult getRuleDetail(Long ruleId);
-//
-//    /**
-//     * 描述：生成排班
-//     */
-//    int generateSkd(List<Long> ruleIds, Date startDate, Date endDate);
-//
-//    /**
-//     * 描述：查询排班记录
-//     */
-//    List<SmsSkdResult> listSkd(SmsSkdParam smsSkdParam);
+    /**
+     * 描述：删除排班规则
+     */
+    int deleteRule(List<Long> ids);
+
+    /**
+     * 描述：修改排班规则
+     */
+    int updateRule(Long id, SmsSkdRuleParam smsSkdRuleParam);
+
+    /**
+     * 描述：根据deptId查找规则（不包括规则项）
+     */
+    List<SmsSkdRuleResult> selectRuleByDept(Long deptId);
+
+
+    /**
+     * 描述：查询规则（查询规则项）
+     */
+    SmsSkdRuleResult getRuleDetail(Long ruleId);
+
+    /**
+     * 描述：生成排班
+     */
+    int generateSkd(List<Long> ruleIds, Date startDate, Date endDate);
+
+    /**
+     * 描述：查询排班记录
+     */
+    List<SmsSkdResult> listSkd(SmsSkdParam smsSkdParam);
 
     /**
      * 描述：根据skd查询doc
