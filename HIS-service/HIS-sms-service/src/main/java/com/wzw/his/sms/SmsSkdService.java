@@ -3,6 +3,7 @@ package com.wzw.his.sms;
 
 
 import com.wzw.his.common.dto.sms.*;
+import com.wzw.his.mbg.model.SmsSkdRuleItemResult;
 import com.wzw.his.mbg.model.SmsSkdRuleResult;
 
 import java.util.Date;
@@ -54,10 +55,9 @@ public interface SmsSkdService {
      */
     List<SmsSkdDocResult> listDocBySkd(SmsSkdDocParam smsSkdDocParam);
 
-//
-//    /**
-//     * 描述: 根据科室id列出所有的能排班的员工
-//     * <p>author: 赵煜
-//     */
-//    List<SmsSkdRuleItemResult> listCanSkdStaffByDept(Long deptId);
+
+    /**
+     * 描述: 根据科室id列出所有的能排班的员工
+     */
+    List<SmsSkdRuleItemResult> listCanSkdStaffByDept(Long deptId);
 }

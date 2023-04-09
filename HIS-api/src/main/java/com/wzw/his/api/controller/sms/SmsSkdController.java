@@ -7,6 +7,7 @@ import com.wzw.his.common.api.CommonResult;
 import com.wzw.his.common.dto.sms.SmsSkdParam;
 import com.wzw.his.common.dto.sms.SmsSkdResult;
 import com.wzw.his.common.dto.sms.SmsSkdRuleParam;
+import com.wzw.his.mbg.model.SmsSkdRuleItemResult;
 import com.wzw.his.mbg.model.SmsSkdRuleResult;
 import com.wzw.his.sms.SmsSkdService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -117,11 +118,8 @@ public class SmsSkdController {
      */
     @RequestMapping(value = "/generateSkd",method = RequestMethod.POST)
     @ResponseBody
-    public CommonResult generateSkd(@RequestParam("ruleIds") List<Long> ruleIds, @RequestParam("startDate")@DateTimeFormat(pattern = "yyyy-MMM-dd")String startDate,@RequestParam("endDate")@DateTimeFormat(pattern = "yyyy-MM-dd")String endDate) throws ParseException {
-        SimpleDateFormat simdate = new SimpleDateFormat("yyyy-MM-dd");
-        Date sdate = simdate.parse(startDate);
-        Date edate = simdate.parse(endDate);
-        int count = smsSkdService.generateSkd(ruleIds, sdate, edate);
+    public CommonResult generateSkd(@RequestParam("ruleIds") List<Long> ruleIds, @RequestParam("startDate")@DateTimeFormat(pattern="yyyy-MM-dd")Date startDate,@RequestParam("endDate")@DateTimeFormat(pattern="yyyy-MM-dd")Date endDate){
+        int count = smsSkdService.generateSkd(ruleIds, startDate, endDate);
         if (count > 0 ){
             return CommonResult.success(count,"生成成功");
         }
@@ -129,10 +127,16 @@ public class SmsSkdController {
 
     }
 
-
+    /**
+     * 描述:查找排班记录，分页
+     * @param queryParam
+     * @param pageSize
+     * @param pageNum
+     * @return
+     */
     @RequestMapping(value = "/listSkd",method = RequestMethod.POST)
     @ResponseBody
-    public CommonResult<CommonPage<SmsSkdResult>> listSkd(SmsSkdParam queryParam,
+    public CommonResult<CommonPage<SmsSkdResult>> listSkd(@RequestBody SmsSkdParam queryParam,
                                                           @RequestParam(value = "pageSize",defaultValue = "5")Integer pageSize,
                                                           @RequestParam(value = "pageNum",defaultValue = "1")Integer pageNum){
         Page page = PageHelper.startPage(pageNum, pageSize);
@@ -141,4 +145,39 @@ public class SmsSkdController {
         return CommonResult.success(CommonPage.restPage(smsSkdResultList,pageTotal));
     }
 
+    /**
+     * 查找排班记录、不分页
+     * @param queryParam
+     * @return
+     */
+    @RequestMapping(value = "/querySkd",method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult<List<SmsSkdResult>> listSkd(SmsSkdParam queryParam){
+        return CommonResult.success(smsSkdService.listSkd(queryParam));
+    }
+
+    /**
+     * 描述: 新增时候列出科室下员工的信息
+     * @param deptId
+     * @return
+     */
+    @RequestMapping(value = "/listCanSkdStaff/{deptId}",method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult<List<SmsSkdRuleItemResult>> listCanSkdStaff(@PathVariable Long deptId){
+        List<SmsSkdRuleItemResult> smsSkdResultList = smsSkdService.listCanSkdStaffByDept(deptId);
+        return CommonResult.success(smsSkdResultList);
+    }
+
 }
+
+
+
+
+
+
+
+
+
+
+
+

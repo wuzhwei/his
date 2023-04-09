@@ -26,6 +26,8 @@ public class SmsSkdServiceImpl implements SmsSkdService {
     SmsSkdRuleItemMapper smsSkdRuleItemMapper;
     @Autowired
     SmsDeptMapper smsDeptMapper;
+    @Autowired
+    SmsRegistrationRankMapper smsRegistrationRankMapper;
 
 
     @Override
@@ -260,14 +262,60 @@ public class SmsSkdServiceImpl implements SmsSkdService {
         if (smsSkdParam.getEndDate() != null){
             criteria.andDateLessThanOrEqualTo(smsSkdParam.getEndDate());
         }
+
         if (smsSkdParam.getNoon() != null){
             criteria.andNoonEqualTo(smsSkdParam.getNoon());
         }
+
+
         if (smsSkdParam.getDeptId() != null){
             criteria.andDeptIdEqualTo(smsSkdParam.getDeptId());
         }
+
+
         //根据挂号级别查询
-        return null;
+        if (smsSkdParam.getRegistrationRankId() != null){
+            SmsStaffExample smsStaffExample = new SmsStaffExample();
+            SmsStaffExample.Criteria staffCriteria = smsStaffExample.createCriteria();
+            staffCriteria.andStatusEqualTo(1);
+            if (smsSkdParam.getDeptId() != null){
+                staffCriteria.andDeptIdEqualTo(smsSkdParam.getDeptId());
+            }
+            staffCriteria.andRegistrationRankIdEqualTo(smsSkdParam.getRegistrationRankId());
+
+            List<SmsStaff> smsStaffList = smsStaffMapper.selectByExample(smsStaffExample);
+            List<Long> smsStaffIdList = new ArrayList<>();
+            for (SmsStaff smsStaff :
+                    smsStaffList) {
+                smsStaffIdList.add(smsStaff.getId());
+            }
+            criteria.andStaffIdIn(smsStaffIdList);
+        }
+        //返回数据包装成Result 20190625
+        smsSkdExample.setOrderByClause("date desc");
+        List<SmsSkd> smsSkdList = smsSkdMapper.selectByExample(smsSkdExample);
+        List<SmsSkdResult> smsSkdResultList = new ArrayList<>();
+        SmsSkdResult smsSkdResult = new SmsSkdResult();
+        for (SmsSkd smsSkd :
+                smsSkdList) {
+            BeanUtils.copyProperties(smsSkd, smsSkdResult);
+            //封装部门名称
+            SmsDept smsDept = smsDeptMapper.selectByPrimaryKey(smsSkd.getDeptId());
+            smsSkdResult.setDeptName(smsDept.getName());
+
+            //封装医生姓名、挂号级别
+            SmsStaff smsStaff = smsStaffMapper.selectByPrimaryKey(smsSkd.getStaffId());
+            smsSkdResult.setStaffName(smsStaff.getName());
+            //挂号级别
+            SmsRegistrationRank smsRegistrationRank = smsRegistrationRankMapper.selectByPrimaryKey(smsStaff.getRegistrationRankId());
+            smsSkdResult.setRegistrationRank(smsRegistrationRank.getName());
+
+            smsSkdResultList.add(smsSkdResult);
+
+        }
+
+
+        return smsSkdResultList;
     }
 
 
@@ -318,6 +366,26 @@ public class SmsSkdServiceImpl implements SmsSkdService {
 
         return smsSkdResultList;
     }
+
+    @Override
+    public List<SmsSkdRuleItemResult> listCanSkdStaffByDept(Long deptId) {
+        SmsStaffExample example = new SmsStaffExample();
+        //找出可以排班的员工
+        example.createCriteria().andDeptIdEqualTo(deptId).andStatusNotEqualTo(0).andSkdFlagEqualTo(1);
+        List<SmsStaff> smsStaffList = smsStaffMapper.selectByExample(example);
+        List<SmsSkdRuleItemResult> smsSkdRuleItemResultList = new ArrayList<>();
+        for (SmsStaff smsStaff :
+                smsStaffList) {
+            SmsSkdRuleItemResult smsSkdRuleItemResult = new SmsSkdRuleItemResult();
+            smsSkdRuleItemResult.setStaffName(smsStaff.getName());
+            smsSkdRuleItemResult.setStaffId(smsStaff.getId());
+            smsSkdRuleItemResultList.add(smsSkdRuleItemResult);
+        }
+        return smsSkdRuleItemResultList;
+    }
+
+
+
     //根据起止日期生成日期List
     private List<Date> getDatesBetweenTwoDate(Date startDate, Date endDate) {
         Calendar calendar = Calendar.getInstance();
