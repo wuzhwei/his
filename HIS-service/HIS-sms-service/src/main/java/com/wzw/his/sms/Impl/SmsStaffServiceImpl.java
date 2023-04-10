@@ -2,6 +2,7 @@ package com.wzw.his.sms.Impl;
 
 import com.wzw.his.common.dto.sms.SmsStaffParam;
 import com.wzw.his.common.dto.sms.SmsStaffResult;
+import com.wzw.his.common.util.JwtTokenUtil;
 import com.wzw.his.common.util.RedisUtil;
 import com.wzw.his.mbg.mapper.SmsDeptMapper;
 import com.wzw.his.mbg.mapper.SmsRoleMapper;
@@ -10,17 +11,28 @@ import com.wzw.his.mbg.mapper.SmsStaffMapper;
 import com.wzw.his.mbg.model.*;
 import com.wzw.his.sms.SmsStaffService;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 @Service
 public class SmsStaffServiceImpl implements SmsStaffService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SmsStaffServiceImpl.class);
 
     @Autowired
     SmsStaffMapper smsStaffMapper;
@@ -33,6 +45,12 @@ public class SmsStaffServiceImpl implements SmsStaffService {
 
     @Autowired
     SmsRoleMapper smsRoleMapper;
+    @Autowired
+    private UserDetailsService userDetailsService;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+    @Autowired
+    private JwtTokenUtil jwtTokenUtil;
     @Override
     public int create(SmsStaffParam smsStaffParam) {
         return 0;
@@ -136,17 +154,86 @@ public class SmsStaffServiceImpl implements SmsStaffService {
 
     @Override
     public List<SmsStaffResult> selectAll() {
-        return null;
+        //先在redis中查询是否存在
+        String status = (String) redisUtil.getObj("staffChangeStatus");
+        if (status != null && status.equals("0")){
+            List<SmsStaffResult> resultList = (List<SmsStaffResult>) redisUtil.getObj("allStaff");
+            if (CollectionUtils.isEmpty(resultList)){
+                return resultList;
+            }
+        }
+        //从数据库中读取
+        SmsStaffExample example = new SmsStaffExample();
+        example.createCriteria().andStatusNotEqualTo(0);
+        //返回数据包装成Result
+        List<SmsStaff> results = smsStaffMapper.selectByExample(example);
+        List<SmsStaffResult> returnList = new ArrayList<>();
+        for (SmsStaff s :
+                results) {
+            SmsStaffResult r = new SmsStaffResult();
+            BeanUtils.copyProperties(s,r);
+            //从科室表中找到对应的科室信息
+            Long deptId = new Long(s.getDeptId());
+            SmsDeptExample deptExample = new SmsDeptExample();
+            deptExample.createCriteria().andIdEqualTo(deptId);
+            List<SmsDept> dept = smsDeptMapper.selectByExample(deptExample);
+            //如果有科室信息则加入，否则加入的是null
+            if (dept.size() > 0){
+                r.setDept(dept.get(0));
+            }
+            //从角色表中找到对应角色信息
+            Long roleId = new Long(s.getRoleId());
+            SmsRoleExample roleExample = new SmsRoleExample();
+            roleExample.createCriteria().andIdEqualTo(roleId);
+            List<SmsRole> role = smsRoleMapper.selectByExample(roleExample);
+            //如果有角色信息则加入，否则加入的是null
+            if (role.size() > 0){
+                r.setRole(role.get(0));
+
+            }
+            returnList.add(r);
+        }
+        //向redis添加
+        redisUtil.setObj("allStaff",returnList);
+        redisUtil.setObj("staffChangeStatus","0");
+        return returnList;
+
     }
 
     @Override
     public SmsStaff selectByUserName(String username) {
+        SmsStaffExample example = new SmsStaffExample();
+        //查找名字相同的且状态不为0的用户
+        example.createCriteria().andUsernameEqualTo(username).andStatusNotEqualTo(0);
+        List<SmsStaff> smsStaffList = smsStaffMapper.selectByExample(example);
+        if (smsStaffList != null && smsStaffList.size() > 0){
+            return smsStaffList.get(0);
+        }
         return null;
     }
 
     @Override
     public String login(String username, String password) {
-        return null;
+        String token = null;
+        //密码需要客户端加密后传递
+        try {
+            //返回的是一个userDetails的实现类AdminUserDetails
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            //password是从前端传过来未经过编译的,而userDetails.getPassword()是从数据库中出来经过编译的
+            if (!passwordEncoder.matches(password,userDetails.getPassword())){
+                throw new BadCredentialsException("密码不正确");
+            }
+            //创建一个新的token
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+            //在securityContext中添加该验证信息
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            token = jwtTokenUtil.generateToken(userDetails);
+            //updateLoginTimeByUsername(username)
+            //insertLogin(username)
+        } catch (AuthenticationException e) {
+            LOGGER.warn("登录异常:{}",e.getMessage());
+        }
+        return token;
     }
 
     @Override
@@ -175,8 +262,8 @@ public class SmsStaffServiceImpl implements SmsStaffService {
             return null;
         }
         //将密码进行加密操作
-        //......省略先不加密..........
-        smsStaff.setPassword(smsStaff.getPassword());
+        String encodePassword = passwordEncoder.encode(smsStaff.getPassword());
+        smsStaff.setPassword(encodePassword);
         smsStaffMapper.insert(smsStaff);
         //插入成功,在redis修改flag
         redisUtil.setObj("staffChangeStatus","1");
