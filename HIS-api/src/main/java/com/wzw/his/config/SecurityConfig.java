@@ -31,6 +31,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -105,7 +106,14 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return username -> {
             SmsStaff staff = smsStaffService.selectByUserName(username);//保证了User存在且状态不为0
             if (staff != null) {
-                List<SmsPermission> permissionList = smsRoleService.getPermissionList(staff.getId());
+//                List<SmsPermission> permissionList = smsRoleService.getPermissionList(staff.getId());
+                //模拟数据----------------------start
+                SmsPermission smsPermission = new SmsPermission();
+                smsPermission.setId(new Long(1));
+                smsPermission.setPid(new Long(1));
+                List<SmsPermission> permissionList = new ArrayList<>();
+                permissionList.add(smsPermission);
+                //模拟数据----------------------end
                 return new StaffDetails(staff,permissionList);
             }
             throw new UsernameNotFoundException("用户名或密码错误");
