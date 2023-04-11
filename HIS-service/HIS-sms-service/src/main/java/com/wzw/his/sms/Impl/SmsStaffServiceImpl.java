@@ -238,6 +238,19 @@ public class SmsStaffServiceImpl implements SmsStaffService {
 
     @Override
     public SmsStaff getStaffByPwd(String username, String password) {
+        SmsStaffExample example = new SmsStaffExample();
+        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        if (passwordEncoder.matches(password, userDetails.getPassword())){
+            String encodePassword = userDetails.getPassword();
+            example.createCriteria().andUsernameEqualTo(username).andPasswordEqualTo(encodePassword).andStatusEqualTo(1);
+            List<SmsStaff> smsStaffList = smsStaffMapper.selectByExample(example);
+            if (smsStaffList != null && smsStaffList.size() > 0){
+                return smsStaffList.get(0);
+            }
+        }
+//        String encodePassword = passwordEncoder.encode(password);
+
+
         return null;
     }
 

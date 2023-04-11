@@ -14,6 +14,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 
@@ -109,7 +110,12 @@ public class SmsStaffController {
         return CommonResult.success(list);
     }
 
-
+    /**
+     * 登录
+     * @param smsStaffLoginParam
+     * @param result
+     * @return
+     */
     @RequestMapping(value = "/login",method = RequestMethod.POST)
     @ResponseBody
     public CommonResult login(@RequestBody SmsStaffLoginParam smsStaffLoginParam, BindingResult result){
@@ -124,6 +130,51 @@ public class SmsStaffController {
         return CommonResult.success(tokenMap);
 
     }
+
+    /**
+     * 根据用户和密码查找用户
+     * @param smsStaffLoginParam
+     * @param result
+     * @return
+     */
+    @RequestMapping(value = "/getStaffByPwd",method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult getStaffByPwd(@RequestBody SmsStaffLoginParam smsStaffLoginParam,BindingResult result){
+        SmsStaff smsStaff = smsStaffService.getStaffByPwd(smsStaffLoginParam.getUsername(), smsStaffLoginParam.getPassword());
+        if (smsStaff == null){
+            return CommonResult.validateFailed("用户名或密码错误");
+        }
+        return CommonResult.success(smsStaff);
+    }
+
+    /**
+     * 获取当前登录用户信息
+     * @param principal
+     * @return
+     */
+
+
+    @RequestMapping(value = "/info",method = RequestMethod.GET)
+    @ResponseBody
+    public CommonResult getAdminInfo(Principal principal){
+        String username = principal.getName();
+        SmsStaff smsStaff = smsStaffService.selectByUserName(username);
+        HashMap<String, Object> data = new HashMap<>();
+        data.put("username",smsStaff.getUsername());
+        data.put("id",smsStaff.getId());
+        data.put("name",smsStaff.getName());
+        data.put("deptId",smsStaff.getDeptId());
+        data.put("roleId",smsStaff.getRoleId());
+        return CommonResult.success(data);
+    }
+
+
+
+
+
+
+
+
 
 
 }
