@@ -65,7 +65,7 @@ public class SmsRegistrationRankController {
      */
     @RequestMapping(value = "/select",method = RequestMethod.POST)
     @ResponseBody
-    public CommonResult<CommonPage<SmsRegistrationRankResult>> list(@RequestBody SmsRegistrationRankParam queryParam,
+    public CommonResult<CommonPage<SmsRegistrationRankResult>> list(SmsRegistrationRankParam queryParam,
                                                                     @RequestParam(value = "pageSize",defaultValue = "5")Integer pageSize,
                                                                     @RequestParam(value = "pageNum",defaultValue = "1")Integer pageNum){
         Page page = PageHelper.startPage(pageNum, pageSize);

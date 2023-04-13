@@ -136,7 +136,7 @@ public class SmsSkdController {
      */
     @RequestMapping(value = "/listSkd",method = RequestMethod.POST)
     @ResponseBody
-    public CommonResult<CommonPage<SmsSkdResult>> listSkd(@RequestBody SmsSkdParam queryParam,
+    public CommonResult<CommonPage<SmsSkdResult>> listSkd(SmsSkdParam queryParam,
                                                           @RequestParam(value = "pageSize",defaultValue = "5")Integer pageSize,
                                                           @RequestParam(value = "pageNum",defaultValue = "1")Integer pageNum){
         Page page = PageHelper.startPage(pageNum, pageSize);
