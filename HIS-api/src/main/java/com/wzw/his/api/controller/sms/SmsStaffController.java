@@ -90,7 +90,7 @@ public class SmsStaffController {
 
     @RequestMapping(value = "/select",method = RequestMethod.POST)
     @ResponseBody
-    public CommonResult<CommonPage<SmsStaffResult>> list(@RequestBody SmsStaffParam queryParam,
+    public CommonResult<CommonPage<SmsStaffResult>> list(SmsStaffParam queryParam,
                                                          @RequestParam(value = "pageSize",defaultValue = "5") Integer pageSize,
                                                          @RequestParam(value = "pageNum",defaultValue = "1")Integer pageNum){
         Page page = PageHelper.startPage(pageNum, pageSize);
