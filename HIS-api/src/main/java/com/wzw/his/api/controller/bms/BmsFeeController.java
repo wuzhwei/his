@@ -5,14 +5,12 @@ import com.github.pagehelper.PageHelper;
 import com.wzw.his.bms.service.BmsFeeService;
 import com.wzw.his.common.api.CommonPage;
 import com.wzw.his.common.api.CommonResult;
+import com.wzw.his.common.dto.bms.BmsChargeParam;
 import com.wzw.his.common.dto.bms.BmsRegistrationPatientResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
 import java.util.List;
@@ -34,4 +32,26 @@ public class BmsFeeController {
         return CommonResult.success(CommonPage.restPage(list,pageTotal));
     }
 
+
+    @RequestMapping(value = "/charge",method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult charge(@RequestBody List<BmsChargeParam> bmsChargeParamList){
+        int result = bmsFeeService.charge(bmsChargeParamList);
+        if (result == 1){
+            return  CommonResult.success(result);
+        }else {
+            return CommonResult.failed();
+        }
+
+    }
+
 }
+
+
+
+
+
+
+
+
+
