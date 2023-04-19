@@ -1,6 +1,7 @@
 package com.wzw.his.bms.service.Impl;
 
 import cn.hutool.core.collection.CollectionUtil;
+import com.wzw.his.bms.model.BmsInvoiceItemList;
 import com.wzw.his.bms.service.BmsFeeService;
 import com.wzw.his.common.dto.bms.*;
 import com.wzw.his.common.util.DateUtil;
@@ -511,13 +512,238 @@ public class BmsFeeServiceImpl implements BmsFeeService {
         return result;
     }
 
+    /**
+     * 非药品，药品退费过程
+     * 1.传入待退项目记录(成药、草药、非药品)ids、原发票、操作员id、type、全款金额
+     * 2.根据原发票号分类(有几个发票就是几类)
+     * 3.1 如果为非药品,则修改状态为5(已退费)
+     * 3.2 如果为药品，则根据项目记录（成药，草药）id和type修改处方项(refund变为0，status变为2已发药),更新处方记录中的amount
+     * 4.新增一条冲红发票记录（金额为原发票总钱负值,与原发票关联）,原发票状态改为3
+     * 5.插入新发票(重新拼串，并更新amount为原amount总退款金额)
+     * @param bmsRefundChargeParamList
+     * @return
+     */
+
     @Override
     public int refundCharge(List<BmsRefundChargeParam> bmsRefundChargeParamList) {
+        if(!bmsRefundChargeParamList.isEmpty()){
+            BigDecimal totalRefundAmount = new BigDecimal(0);//存要退的总金额
+            ArrayList<BmsInvoiceItemList> refundList = new ArrayList<>();
+            for (BmsRefundChargeParam bmsRefundChargeParam : bmsRefundChargeParamList) {
+                System.err.println("bmsRefundChargeParam"+ bmsRefundChargeParam);
+                Integer type = bmsRefundChargeParam.getType();
+                //非药品
+                if (type == 1 || type == 2 || type == 3){
+                    DmsNonDrugItemRecord dmsNonDrugItemRecord = dmsNonDrugItemRecordMapper.selectByPrimaryKey(bmsRefundChargeParam.getChargeItemId());
+                    dmsNonDrugItemRecord.setStatus(5);
+                    dmsNonDrugItemRecordMapper.updateByPrimaryKeySelective(dmsNonDrugItemRecord);
+                    //加入refundList，非药品直接加入
+                    BmsInvoiceItemList bmsInvoiceItemList = new BmsInvoiceItemList(bmsRefundChargeParam.getChargeItemId(), type, new BigDecimal(0));
+                    totalRefundAmount = totalRefundAmount.add(bmsRefundChargeParam.getRefundAmount());
+                    refundList.add(bmsInvoiceItemList);
+                }
+                //草药
+                if (type == 4){
+                    DmsHerbalItemRecord dmsHerbalItemRecord = dmsHerbalItemRecordMapper.selectByPrimaryKey(bmsRefundChargeParam.getChargeItemId());
+                    if (dmsHerbalItemRecord.getStatus() == 1){ //未发药
+                        dmsHerbalItemRecord.setCurrentNum(0l);
+                    }
+                    dmsHerbalItemRecord.setStatus(2);//2已发药
+                    dmsHerbalItemRecordMapper.updateByPrimaryKeySelective(dmsHerbalItemRecord);
+                    //更新处方记录中的amount
+                    Long prescriptionId = dmsHerbalItemRecord.getPrescriptionId();
+                    DmsHerbalPrescriptionRecord dmsHerbalPrescriptionRecord = dmsHerbalPrescriptionRecordMapper.selectByPrimaryKey(prescriptionId);
+                    dmsHerbalPrescriptionRecord.setAmount(dmsHerbalPrescriptionRecord.getAmount().subtract(bmsRefundChargeParam.getRefundAmount()));
+                    dmsHerbalPrescriptionRecordMapper.updateByPrimaryKeySelective(dmsHerbalPrescriptionRecord);
+                    totalRefundAmount =  totalRefundAmount.add(bmsRefundChargeParam.getRefundAmount());
+                    //加入refundList,药品按照处方加入
+                    if (!refundList.isEmpty()){
+                        int flag = 0;//标志改处方是否已加入
+                        int index = 0;//若该处方已加入,则标志该处方在list的index
+                        for (int i = 0; i < refundList.size(); i++) {
+                            if (refundList.get(i).getId() == dmsHerbalPrescriptionRecord.getId() && refundList.get(i).getType() == type){
+                                flag = 1;
+                                index = i;
+                                break;
+                            }
+                        }
+                        if (flag == 1){//若存在,则更新金额
+                            BigDecimal oldAmount = refundList.get(index).getAmount();
+                            BigDecimal newAmount = oldAmount.add(bmsRefundChargeParam.getRefundAmount());
+                            refundList.get(index).setAmount(newAmount);
+                        }
+                        else{//如果不存在,则加入refundList
+                            BmsInvoiceItemList bmsInvoiceItemList = new BmsInvoiceItemList(dmsHerbalPrescriptionRecord.getId(), type, bmsRefundChargeParam.getRefundAmount());
+                            refundList.add(bmsInvoiceItemList);
+
+                        }
+                    }
+                }
+                //发药
+                if (type == 5){
+                    DmsMedicineItemRecord dmsMedicineItemRecord = dmsMedicineItemRecordMapper.selectByPrimaryKey(bmsRefundChargeParam.getChargeItemId());
+                    dmsMedicineItemRecord.setRefundNum(0l);
+                    if (dmsMedicineItemRecord.getStatus() == 1){//未发药
+                        dmsMedicineItemRecord.setCurrentNum(0l);
+                    }
+                    dmsMedicineItemRecord.setStatus(2);//2已发药
+                    dmsMedicineItemRecordMapper.updateByPrimaryKeySelective(dmsMedicineItemRecord);
+                    //更新处方记录中的amount
+                    Long prescriptionId = dmsMedicineItemRecord.getPrescriptionId();
+                    DmsMedicinePrescriptionRecord dmsMedicinePrescriptionRecord = dmsMedicinePrescriptionRecordMapper.selectByPrimaryKey(prescriptionId);
+                    dmsMedicinePrescriptionRecord.setAmount(dmsMedicinePrescriptionRecord.getAmount().subtract(bmsRefundChargeParam.getRefundAmount()));
+                    dmsMedicinePrescriptionRecordMapper.updateByPrimaryKeySelective(dmsMedicinePrescriptionRecord);
+                    totalRefundAmount = totalRefundAmount.add(bmsRefundChargeParam.getRefundAmount());
+                    //加入refundList ,药品按照处方加入
+                    if (!refundList.isEmpty()){
+                        int flag = 0;//标志按照处方加入
+                        int index = 0;//若该处方已加入,则标志该处方在list的index
+                        for (int i = 0; i < refundList.size(); i++) {
+                            if (refundList.get(i).getId() == dmsMedicinePrescriptionRecord.getId() && refundList.get(i).getType() == type){
+                                flag = 1;
+                                index = i;
+                                break;
+                            }
+                        }
+                        if (flag == 1){//若存在,则更新金额
+                            BigDecimal oldAmount = refundList.get(index).getAmount();
+                            BigDecimal newAmount = oldAmount.add(bmsRefundChargeParam.getRefundAmount());
+                            refundList.get(index).setAmount(newAmount);
+
+                        }else{//如果不存在,则加入refundList
+                            BmsInvoiceItemList bmsInvoiceItemList = new BmsInvoiceItemList(dmsMedicinePrescriptionRecord.getId(), type, bmsRefundChargeParam.getRefundAmount());
+                            refundList.add(bmsInvoiceItemList);
+                        }
+                    }
+
+                }
+
+            }
+            Long invoiceNo = bmsRefundChargeParamList.get(0).getInvoiceNo();//原发票号
+            Long redInvoiceNo = bmsRefundChargeParamList.get(0).getRedInvoiceNo();//冲红发票号
+            Long newInvoiceNo = bmsRefundChargeParamList.get(0).getNewInvoiceNo();//新发票号
+            Long operatorId = bmsRefundChargeParamList.get(0).getOperatorId();//操作原id
+            Long settlementCatId = bmsRefundChargeParamList.get(0).getSettlementCatId();//结算类型
+            BmsInvoiceRecordExample bmsInvoiceRecordExample = new BmsInvoiceRecordExample();
+            bmsInvoiceRecordExample.createCriteria().andInvoiceNoEqualTo(invoiceNo);
+            List<BmsInvoiceRecord> bmsInvoiceRecordList = bmsInvoiceRecordMapper.selectByExample(bmsInvoiceRecordExample);
+            if (!bmsInvoiceRecordList.isEmpty()){
+                Date date = new Date();
+                BmsInvoiceRecord bmsInvoiceRecord = bmsInvoiceRecordList.get(0);
+                //新增一条冲红发票记录(金额为原始发票总钱复制，与原发票关联)
+                BigDecimal oldAmount = bmsInvoiceRecord.getAmount();//原始发票的金额
+                BmsInvoiceRecord redBmsInvoiceRecord = new BmsInvoiceRecord();
+                redBmsInvoiceRecord.setAmount(oldAmount.multiply(new BigDecimal(-1)));
+                redBmsInvoiceRecord.setAssociateId(bmsInvoiceRecord.getId());
+                redBmsInvoiceRecord.setInvoiceNo(redInvoiceNo);
+                redBmsInvoiceRecord.setCreateTime(date);
+                redBmsInvoiceRecord.setOperatorId(operatorId);
+                redBmsInvoiceRecord.setBillId(bmsInvoiceRecord.getBillId());
+                redBmsInvoiceRecord.setType(2);//2冲红
+                bmsInvoiceRecordMapper.insertSelective(redBmsInvoiceRecord);
+
+                //插入新发票(重新拼串,并更新amout为原amount总退款金额)
+                BigDecimal newAmount = oldAmount.subtract(totalRefundAmount);//新发票的金额
+                BmsInvoiceRecord newBmsInvoiceRecord = new BmsInvoiceRecord();
+                newBmsInvoiceRecord.setAmount(newAmount);
+                newBmsInvoiceRecord.setInvoiceNo(newInvoiceNo);
+                newBmsInvoiceRecord.setCreateTime(date);
+                newBmsInvoiceRecord.setBillId(bmsInvoiceRecord.getBillId());
+                newBmsInvoiceRecord.setOperatorId(operatorId);
+                newBmsInvoiceRecord.setSettlementCatId(settlementCatId);
+                newBmsInvoiceRecord.setType(1);
+                //新发票的itemList
+                String oldItemList = bmsInvoiceRecord.getItemList();
+                String[][] resolveItemList = resolveItemList(oldItemList);
+                String newList = "";
+                if (resolveItemList.length != 0){
+                    for (int x = 0; x < resolveItemList.length; x++) {
+                        Long id = Long.valueOf(resolveItemList[x][0]);
+                        Integer type = Integer.valueOf(resolveItemList[x][1]);
+                        BigDecimal amount = new BigDecimal(resolveItemList[x][2]);
+                        for (int i = 0; i < refundList.size(); i++) {
+                            if (refundList.get(i).getId() == id && refundList.get(i).getType() == type){
+                                resolveItemList[x][2] = refundList.get(i).getAmount().toString();//可能有问题
+                            }
+                        }
+
+                    }
+                    for (int j = 0; j < resolveItemList.length; j++) {
+                        if (Double.parseDouble(resolveItemList[j][2]) == 0){
+                            continue;
+                        }else {
+                            newList = newList + resolveItemList[j][0] + "," + resolveItemList[j][1] + "," + resolveItemList[j][2] + "><";
+                        }
+
+                    }
+                }
+                //原发票type该为3，原发票与新发票关联
+                bmsInvoiceRecordExample.clear();
+                bmsInvoiceRecordExample.createCriteria().andInvoiceNoEqualTo(invoiceNo);
+                List<BmsInvoiceRecord> bmsInvoiceRecordList1 = bmsInvoiceRecordMapper.selectByExample(bmsInvoiceRecordExample);
+                if (bmsInvoiceRecordList1.isEmpty()){
+                    Long newInvoiceId = bmsInvoiceRecordList1.get(0).getId();
+                    bmsInvoiceRecord.setType(3);
+                    bmsInvoiceRecord.setAssociateId(newInvoiceId);
+                    bmsInvoiceRecordMapper.updateByPrimaryKeySelective(bmsInvoiceRecord);
+                    newBmsInvoiceRecord.setSettleRecordId(bmsInvoiceRecordList1.get(0).getSettleRecordId());
+                }
+                newBmsInvoiceRecord.setItemList(newList);
+                bmsInvoiceRecordMapper.insertSelective(newBmsInvoiceRecord);
+            }
+            return 1;
+        }
         return 0;
     }
 
+    /**
+     * 挂号退费过程
+     * 1.传入挂号id
+     * 2.判断状态为1（待诊），则直接退费，修改项目状态为4(已退号)
+     * 3.根据挂号id查找账单,根据账单id和status为1找到发票
+     * 4.新增一条冲红发票记录(原发票amount 负值，与原发票关联),把状态改为3(被冲红)
+     * 5.根据挂号id，判断是否为专家号，如果为专家号，则修改skd,相关医生的限额+1
+     * @param bmsRefundRegChargeParam
+     * @return
+     */
     @Override
     public int refundRegistrationCharge(BmsRefundRegChargeParam bmsRefundRegChargeParam) {
-        return 0;
+        DmsRegistration dmsRegistration = dmsRegistrationMapper.selectByPrimaryKey(bmsRefundRegChargeParam.getRegistrationId());
+        if (dmsRegistration.getStatus() == 1 ){ //待诊
+            dmsRegistration.setStatus(4);//已退号
+            dmsRegistrationMapper.updateByPrimaryKeySelective(dmsRegistration);
+        }
+        BmsInvoiceRecordExample bmsInvoiceRecordExample = new BmsInvoiceRecordExample();
+        bmsInvoiceRecordExample.createCriteria().andInvoiceNoEqualTo(bmsRefundRegChargeParam.getOldInvoiceNo());
+        List<BmsInvoiceRecord> bmsInvoiceRecordList = bmsInvoiceRecordMapper.selectByExample(bmsInvoiceRecordExample);
+        if (!bmsInvoiceRecordList.isEmpty()){
+            BmsInvoiceRecord bmsInvoiceRecord = bmsInvoiceRecordList.get(0);
+            //更新原发票
+            bmsInvoiceRecord.setType(3);
+            bmsInvoiceRecordMapper.updateByPrimaryKeySelective(bmsInvoiceRecord);
+            
+            //插入冲红发票
+            BigDecimal oldAmount = bmsInvoiceRecord.getAmount();
+            BigDecimal newAmount = oldAmount.multiply(new BigDecimal(-1));
+            BmsInvoiceRecord redBmsInvoiceRecord = new BmsInvoiceRecord();
+            redBmsInvoiceRecord.setInvoiceNo(bmsRefundRegChargeParam.getRedInvoiceNo());
+            redBmsInvoiceRecord.setAssociateId(bmsInvoiceRecord.getId());
+            redBmsInvoiceRecord.setAmount(newAmount);
+            redBmsInvoiceRecord.setCreateTime(new Date());
+            redBmsInvoiceRecord.setType(2);
+            redBmsInvoiceRecord.setOperatorId(bmsRefundRegChargeParam.getOperatorId());
+            redBmsInvoiceRecord.setBillId(bmsInvoiceRecord.getBillId());
+            bmsInvoiceRecordMapper.insertSelective(redBmsInvoiceRecord);
+            //根据挂号id，判断是否为专家号，如果为专家号,则修改skd,相关的限额+1
+            SmsSkd smsSkd = smsSkdMapper.selectByPrimaryKey(dmsRegistration.getSkdId());
+            SmsStaff smsStaff = smsStaffMapper.selectByPrimaryKey(smsSkd.getStaffId());
+            SmsRegistrationRank smsRegistrationRank = smsRegistrationRankMapper.selectByPrimaryKey(smsStaff.getRegistrationRankId());
+            if (smsRegistrationRank.getCode() == "specialist"){
+                smsSkd.setRemain(smsSkd.getRemain() + 1);
+                smsSkdMapper.updateByPrimaryKey(smsSkd);
+            }
+        }
+
+        return 1;
     }
 }

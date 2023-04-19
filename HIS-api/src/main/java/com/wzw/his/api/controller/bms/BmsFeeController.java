@@ -5,8 +5,7 @@ import com.github.pagehelper.PageHelper;
 import com.wzw.his.bms.service.BmsFeeService;
 import com.wzw.his.common.api.CommonPage;
 import com.wzw.his.common.api.CommonResult;
-import com.wzw.his.common.dto.bms.BmsChargeParam;
-import com.wzw.his.common.dto.bms.BmsRegistrationPatientResult;
+import com.wzw.his.common.dto.bms.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
@@ -41,6 +40,42 @@ public class BmsFeeController {
             return  CommonResult.success(result);
         }else {
             return CommonResult.failed();
+        }
+
+    }
+    @RequestMapping(value = "/listRefundByRegistrationId",method = RequestMethod.GET)
+    @ResponseBody
+    public CommonResult<List<BmsRefundChargeResult>> listRefundByRegistrationId(@RequestParam("registrationId")Long registrationId){
+        List<BmsRefundChargeResult> bmsRefundChargeResultList = bmsFeeService.listRefundByRegistrationId(registrationId);
+        if (bmsRefundChargeResultList.isEmpty()){
+            return CommonResult.success(null);
+        }else {
+            return CommonResult.success(bmsRefundChargeResultList);
+        }
+
+    }
+
+    @RequestMapping(value = "/refundCharge",method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult refundCharge(@RequestBody List<BmsRefundChargeParam> bmsRefundChargeParamList){
+        int result = bmsFeeService.refundCharge(bmsRefundChargeParamList);
+        if (result == 1){
+            return CommonResult.success(result);
+        }else{
+            return CommonResult.failed();
+        }
+    }
+
+
+    @RequestMapping(value = "refundRegistrationCharge",method = RequestMethod.POST)
+    @ResponseBody
+    public CommonResult refundRegistrationCharge(@RequestBody BmsRefundRegChargeParam bmsRefundRegChargeParam){
+        int result = bmsFeeService.refundRegistrationCharge(bmsRefundRegChargeParam);
+        if (result == 1){
+            return CommonResult.success(result);
+        }
+        else{
+           return CommonResult.failed();
         }
 
     }
